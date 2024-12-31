@@ -1,0 +1,27 @@
+never packet_flow_safety {    /* !([] (((packet_count<=10)) && (! (critical_error)))) */
+T0_init:
+	do
+	:: atomic { (! ((((packet_count<=10)) && (! (critical_error))))) -> assert(!(! ((((packet_count<=10)) && (! (critical_error)))))) }
+	:: (1) -> goto T0_init
+	od;
+accept_all:
+	skip
+}
+never buffer_size_invariant {    /* !([] ((buflen<=128))) */
+T0_init:
+	do
+	:: atomic { (! (((buflen<=128)))) -> assert(!(! (((buflen<=128))))) }
+	:: (1) -> goto T0_init
+	od;
+accept_all:
+	skip
+}
+never no_continuous_overflow {    /* !([] (! (critical_error))) */
+T0_init:
+	do
+	:: atomic { (! ((! (critical_error)))) -> assert(!(! ((! (critical_error))))) }
+	:: (1) -> goto T0_init
+	od;
+accept_all:
+	skip
+}

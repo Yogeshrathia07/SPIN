@@ -1,0 +1,5 @@
+ltl  p1 { [] (buflen <= 128) }
+ltl  p2 { (copy_initiated) -> (<> copy_completed) }
+ltl  p3 { [] ((copy_initiated && !header_allocated) -> (!copy_completed)) }
+ltl  p4 { [] (!error_detected) }
+ltl  p5 { [] ((header_reduced) -> (hdrlen < 128)) }

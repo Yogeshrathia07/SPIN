@@ -1,0 +1,29 @@
+never buffer_safety {    /* !([] (((hdrlen+buflen)<=128))) */
+T0_init:
+	do
+	:: atomic { (! ((((hdrlen+buflen)<=128)))) -> assert(!(! ((((hdrlen+buflen)<=128))))) }
+	:: (1) -> goto T0_init
+	od;
+accept_all:
+	skip
+}
+never header_allocation_reduction {    /* !([] ((! (header_allocated)) || ((334>0)))) */
+T0_init:
+	do
+	:: atomic { (! (((! (header_allocated)) || ((334>0))))) -> assert(!(! (((! (header_allocated)) || ((334>0)))))) }
+	:: (1) -> goto T0_init
+	od;
+accept_all:
+	skip
+}
+never valid_copyto {    /* !([] ((! (((hdrlen+buflen)<=128))) || (<> ((((bufptr+hdrlen)+buflen)>0))))) */
+T0_init:
+	do
+	:: (! ((! (((hdrlen+buflen)<=128)))) && ! (((((bufptr+hdrlen)+buflen)>0)))) -> goto accept_S4
+	:: (1) -> goto T0_init
+	od;
+accept_S4:
+	do
+	:: (! (((((bufptr+hdrlen)+buflen)>0)))) -> goto accept_S4
+	od;
+}

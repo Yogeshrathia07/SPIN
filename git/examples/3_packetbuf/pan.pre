@@ -1,0 +1,156 @@
+# 0 "final2.pml"
+# 0 "<built-in>"
+# 0 "<command-line>"
+# 1 "/usr/include/stdc-predef.h" 1 3 4
+# 0 "<command-line>" 2
+# 1 "final2.pml"
+
+
+
+
+
+
+bool copy_initiated = false;
+bool header_allocated = false;
+bool copy_completed = false;
+bool header_reduced = false;
+bool error_detected = false;
+
+
+short operation_sequence = 0;
+short max_sequence_depth = 5;
+
+
+typedef Attribute {
+    int val;
+}
+
+typedef Address {
+    int addr;
+    bool is_null;
+}
+
+
+byte packetbuf[128];
+int buflen = 0;
+int bufptr = 0;
+int hdrlen = 0;
+
+Attribute packetbuf_attrs[16];
+Address packetbuf_addrs[8];
+
+
+ltl p1 { [] (buflen <= 128) }
+ltl p2 { (copy_initiated) -> (<> copy_completed) }
+ltl p3 { [] ((copy_initiated && !header_allocated) -> (!copy_completed)) }
+ltl p4 { [] (!error_detected) }
+ltl p5 { [] ((header_reduced) -> (hdrlen < 128)) }
+
+
+inline reset_state() {
+    copy_initiated = false;
+    header_allocated = false;
+    copy_completed = false;
+    header_reduced = false;
+    error_detected = false;
+    operation_sequence = 0;
+}
+
+inline safe_copy_from(from, ln) {
+    atomic {
+        if
+        :: (operation_sequence < max_sequence_depth) ->
+            copy_initiated = true;
+
+            int l = (ln <= 128) -> ln : 128;
+
+            for (int i : 0 .. l - 1) {
+                packetbuf[i] = from[i];
+            }
+            buflen = l;
+
+            if
+            :: (buflen > 128) -> error_detected = true;
+            :: else -> skip;
+            fi;
+
+            copy_completed = true;
+            operation_sequence++;
+        :: else -> skip;
+        fi;
+    }
+}
+
+inline safe_header_alloc(size) {
+    atomic {
+        if
+        :: (operation_sequence < max_sequence_depth) ->
+            header_allocated = true;
+
+            if
+            :: (hdrlen + buflen + size > 128) ->
+                error_detected = true;
+            :: else ->
+                for (int i : hdrlen + buflen - 1 .. 0) {
+                    packetbuf[i + size] = packetbuf[i];
+                }
+                hdrlen = hdrlen + size;
+            fi;
+
+            operation_sequence++;
+        :: else -> skip;
+        fi;
+    }
+}
+
+inline safe_header_reduce(size) {
+    atomic {
+        if
+        :: (operation_sequence < max_sequence_depth) ->
+            if
+            :: (buflen >= size) ->
+                bufptr = bufptr + size;
+                buflen = buflen - size;
+                header_reduced = true;
+            :: else ->
+                error_detected = true;
+            fi;
+
+            operation_sequence++;
+        :: else -> skip;
+        fi;
+    }
+}
+
+
+active [3] proctype PacketBufferVerification() {
+    byte source[128];
+    byte destination[128];
+
+
+    for (int i : 0 .. 128 - 1) {
+        source[i] = (byte)(i * (_pid + 1));
+    }
+
+
+    do
+    :: reset_state();
+       safe_copy_from(source, 128/2);
+       safe_header_alloc(10);
+       safe_header_reduce(5);
+
+
+       if
+       :: safe_copy_from(destination, 20);
+       :: safe_header_alloc(15);
+       :: safe_header_reduce(3);
+       :: skip;
+       fi;
+
+
+       if
+       :: (operation_sequence >= max_sequence_depth) -> break;
+       :: else -> continue;
+       fi;
+    od;
+}
